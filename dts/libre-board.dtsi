@@ -1,0 +1,186 @@
+/dts-v1/;
+#include "zynq-7000.dtsi"
+#include <include/dt-bindings/input/input.h>
+#include <include/dt-bindings/gpio/gpio.h>
+#include <include/dt-bindings/interrupt-controller/irq.h>
+/ {
+	model = "LibreSDR Rev.5 (Z7020/AD9363)";
+
+	aliases {
+		ethernet0 = &gem0;
+		serial0 = &uart0;
+	};
+        
+	chosen {
+		bootargs = "";
+		stdout-path = "serial0:115200n8";
+	};
+		
+	vcc_3v3: fixedregulator {
+                compatible = "regulator-fixed";
+                regulator-name = "vcc_3v3";
+                regulator-min-microvolt = <3300000>;
+                regulator-max-microvolt = <3300000>;
+                regulator-always-on;
+        };
+	clocks {
+		ad9364_clkin: clock {
+			#clock-cells = <0>;
+			compatible = "adjustable-clock";
+			clock-frequency = <40000000>;
+			clock-accuracy = <200000>; /* 200 ppm (ppb) */
+			clock-output-names = "ad9364_ext_refclk";
+		};
+	};
+	usb_phy0: phy0 {
+		compatible = "ulpi-phy";
+		#phy-cells = <0>;
+		reg = <0xe0002000 0x1000>;
+		view-port = <0x0170>;
+		drv-vbus;
+	};
+	leds {
+		compatible = "gpio-leds";
+		led0 {
+			label = "led0:blue";
+			gpios = <&gpio0 72 0>;
+			linux,default-trigger = "cpu";
+		};
+		led1 {
+			label = "led1:blue";
+			gpios = <&gpio0 73 0>;
+			linux,default-trigger = "none";
+		};
+	};
+        gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button {
+			interrupt-parent = <&gpio0>;
+			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+			label = "Button";
+			linux,code = <BTN_MISC>;
+		};
+
+	};
+};
+
+&sdhci0 {
+	status = "okay";
+	xlnx,has-cd = <0x0>;
+	xlnx,has-power = <0x0>;
+	xlnx,has-wp = <0x0>;
+};
+
+&watchdog0 {
+	status = "okay";
+	reset-on-timeout;
+};
+
+&usb0 {
+	// The PHY expects an active low reset.
+	// This looks like it's specifying an active high GPIO, but it works.
+	xlnx,phy-reset-gpio = <&gpio0 47 0>;
+	dr_mode = "otg";
+	status = "okay";
+	usb-phy = <&usb_phy0>;
+};
+
+&uart0 {
+	bootph-all;
+	status = "okay";
+};
+
+&gem0 {
+	status = "okay";
+	phy-mode = "rgmii-id";
+	phy-handle = <&phy0>;
+
+	phy0: phy@0 { /* any PHY that implements IEEE 802.3 clause 22 */
+		reg = <0>;
+		compatible = "ethernet-phy-ieee802.3-c22";
+		// TODO check polarity - 
+		reset-gpios = <&gpio0 9 1>;
+		// TODO add interrupt from gpio0
+		//interrupt-parent = <&???>;
+		//interrupts = <???>; // MIO 10, syntax depends on parent I think
+	};
+};
+
+&qspi {
+	status = "okay";
+	is-dual = <0>;
+	num-cs = <1>;
+	spi-nor-locking-disable;
+
+	primary_flash: ps7-qspi@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <50000000>;
+		partition@qspi-fsbl-uboot {
+			label = "qspi-fsbl-uboot";
+			reg = <0x0 0x100000>; /* 1M */
+		};
+		partition@qspi-uboot-env {
+			label = "qspi-uboot-env";
+			reg = <0x100000 0x20000>; /* 128k */
+		};
+		partition@qspi-nvmfs {
+			label = "qspi-nvmfs";
+			reg = <0x120000 0xE0000>; /* 1M */
+		};
+		partition@qspi-linux {
+			label = "qspi-linux";
+			reg = <0x200000 0x1E00000>; /* 30M */
+		};
+	};
+};
+
+&adc {
+	xlnx,channels {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		channel@0 {
+			reg = <0>;
+		};
+	};
+};
+
+// axi_spi must be defined in the PL device tree
+&axi_spi {
+	// https://www.kernel.org/doc/Documentation/devicetree/bindings/iio/dac/ti%2Cdac7311.txt
+	clk_dac: dac@0 {
+		compatible = "ti,dac7311";
+		reg = <0>; /* CE0 */
+		spi-max-frequency = <1000000>;
+		vref-supply = <&vcc_3v3>;
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	adc0_ad9364: ad9361-phy@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#clock-cells = <1>;
+		compatible = "adi,ad9361";
+
+		/* SPI Setup */
+		reg = <0>;
+		spi-cpha;
+		spi-max-frequency = <10000000>;
+
+		/* Clocks */
+		clocks = <&ad9364_clkin>;
+		clock-names = "ad9361_ext_refclk";
+		clock-output-names = "rx_sampl_clk", "tx_sampl_clk";
+	};
+};
+
