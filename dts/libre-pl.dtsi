@@ -73,3 +73,7 @@
 	};
 };
 
+// SDTGen assigns the wrong interrupt number and type
+&axi_spi {
+	interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>;
+};
