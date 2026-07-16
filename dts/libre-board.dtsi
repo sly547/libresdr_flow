@@ -101,11 +101,9 @@
 	phy0: phy@0 { /* any PHY that implements IEEE 802.3 clause 22 */
 		reg = <0>;
 		compatible = "ethernet-phy-ieee802.3-c22";
-		// TODO check polarity - 
-		reset-gpios = <&gpio0 9 1>;
-		// TODO add interrupt from gpio0
-		//interrupt-parent = <&???>;
-		//interrupts = <???>; // MIO 10, syntax depends on parent I think
+		reset-gpios = <&gpio0 9 1>; // ETH_RESET# on MIO 9
+		interrupt-parent = <&gpio0>;
+		interrupts = <10 IRQ_TYPE_LEVEL_LOW>; // ETH_INT_B on MIO 10
 	};
 };
 
