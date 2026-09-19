@@ -1,0 +1,6 @@
+[submodule "hdl"]
+	path = hdl
+	url = ./hdl/
+[submodule "br2-external"]
+	path = br2-external
+	url = ./br2-external/
