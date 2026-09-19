@@ -81,3 +81,121 @@
 &axi_spi {
 	interrupts = <0 30 IRQ_TYPE_LEVEL_HIGH>;
 };
+
+&hier_video_v_tc_0 {
+	//compatible = "xlnx,v-tc-6.1", "xlnx,bridge-v-tc-6.1";
+	/* don't let the xilinx-vtc driver from the media framework bind, only xlnx-vtc from DRM */
+	compatible = "xlnx,bridge-v-tc-6.1";
+	//compatible = "xlnx,v-tc-6.2", "xlnx,bridge-v-tc-6.1";
+	interrupts = < 0 33 4 >;
+};
+
+&hier_video_v_frmbuf_rd_0 {
+	interrupts = < 0 34 4 >;
+};
+
+&amba_pl {
+	xlnx_pl_disp {
+		compatible = "xlnx,pl-disp";
+		dmas = <&hier_video_v_frmbuf_rd_0 0>;
+		dma-names = "dma0";
+		memory-region = <&psmem_disp>;
+		xlnx,bridge = <&hier_video_v_tc_0>;
+		xlnx,vformat = "XR24";
+		port {
+			pl_disp_ep: endpoint {
+				remote-endpoint = <&my_encoder_in>;
+			};
+		};
+	};
+};
+
+/ {
+	reserved-memory {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+		psmem_disp: buffer@3c000000 {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x3c000000 0x04000000>;
+		};
+	};
+
+	my_encoder {
+		compatible = "my,simple-encoder";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				my_encoder_in: endpoint {
+					remote-endpoint = <&mixer_crtchier_video_v_mix_0>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				my_encoder_out: endpoint {
+					remote-endpoint = <&vga_bridge_in>;
+				};
+			};
+		};
+	};
+
+	tv_simple_bridge {
+		compatible = "dumb-vga-dac";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vga_bridge_in: endpoint {
+					remote-endpoint = <&my_encoder_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&tv_connector_in>;
+				};
+			};
+		};
+	};
+
+	tv_connector {
+		compatible = "vga-connector";
+
+		port {
+			tv_connector_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
+	};
+
+	video_cap {
+		compatible = "xlnx,video";
+		dmas = <&hier_video_v_frmbuf_rd_0 1>;
+		dma-names = "port0";
+		memory-region = <&psmem_disp>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				direction = "output";
+			};
+		};
+	};
+};
