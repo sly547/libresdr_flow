@@ -11,6 +11,9 @@ build-hdl:
     mkdir -p build
     cp hdl/projects/libre/libre.sdk/system_top.xsa build/
 
+stage-manual-xsa:
+    cp hdl/projects/libre/system_top.xsa build/
+
 build-fsbl:
     #!/usr/bin/env bash
     echo "building FSBL"
@@ -50,7 +53,17 @@ stage-artifacts:
 
 build-buildroot:
     @echo "building the system with buildroot"
+    make -C br2-external/buildroot board-fpga-rebuild uboot-rebuild linux-rebuild
     make -C br2-external/buildroot
+
+deploy-lan:
+    rsync -rv -e 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' ./br2-external/buildroot/output/images/sdimg/ root@libresdr.local:/boot/
+
+gui:
+    #!/usr/bin/env bash
+    echo "opening Vivado"
+    source {{vivado_path}}
+    vivado hdl/projects/libre/libre.xpr
 
 clean:
     make -C hdl/projects/libre clean-all
