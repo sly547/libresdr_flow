@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Michael Büchler
+# SPDX-License-Identifier: MIT
+
 set shell := ["bash", "-c"]
 
 vivado_path := "/mnt/ssd/tools/Xilinx/2025.2/Vivado/settings64.sh"
