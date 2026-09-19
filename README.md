@@ -1,3 +1,17 @@
+## tezuka features removed
+
+- no ifplugd script [/etc/ifplugd/ifplugd.action](https://github.com/F5OEO/tezuka_fw/blob/main/board/tezuka/common/overlay_tezuka/etc/ifplugd/ifplugd.action`)
+    - udhcpc is only started (by busybox?) when `eth0` is plugged in during boot
+- MAC address from hardcoded '00:60:88' + processed SHA-1 of `$SERIAL` in `/etc/init.d/S40network`
+    - configured in `/etc/network/interfaces`
+    - introduced [here](https://github.com/F5OEO/tezuka_fw/pull/21)
+    - otherwise it uses the default MAC address for the Zynq's Ethernet MAC (00 0a 35 00 01 22)
+    - maybe replace with `set ethaddr AA BB CC DD EE FF` in U-boot (try `saveenv`)
+
+## adding custom IP to the HDL project
+
+Don't fight adi-hdl's build scripts too much. Setting the `ip_repo_paths` variable and creating the block design happens in one single Tcl process `adi_project_create`, but it then calls the project's `system_bd.tcl`, which allows customization. The only annoyance is that the BD has to be closed before `update_ip_catalog` can be called.
+
 ## building the bitstream
 
 ```sh
@@ -68,3 +82,17 @@ The output must be copied to `br2-external/board/tezuka/libre/dts/zynq-libre.dts
 ## bitstream
 
 current solution: buildroot package `board-fpga` from tezuka_fw extracts and copies `system_top.bit` to `buildroot/output/images/`.
+
+To rebuild with a new XSA file:
+
+```sh
+just stage-manual-xsa
+just build-dts
+just stage-artifacts
+
+# update buildroot
+make -C br2-external/buildroot board-fpga-rebuild uboot-rebuild linux-rebuild && make -C br2-external/buildroot
+
+# copy to target
+rsync -rv -e 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' ./br2-external/buildroot/output/images/sdimg/ root@libresdr.local:/boot/
+```
