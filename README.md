@@ -1,9 +1,11 @@
 ## Introduction
 
-Why this repo? I wanted to have the complete build flow understood and under control. tezuka_fw is nice for the enhancements and features it provides over the PlutoSDR code from Analog Devices Inc. (ADI), but I don't actually need those features and they are in my way (example: some background script in Linux for push-to-talk functionality kept disabling my Tx LO and I was pulling my hair out before I found the culprit).
-What I need is a developer-friendly platform for experimentation and exploration, so I tried to combine the best of both worlds.Maybe others find it useful, too.
+This is the top level folder for a build flow to build and deploy the programmable logic (aka FPGA firmware, or gateware if you like) and an embedded Linux on a LibreSDR. It is a Zynq-7000-based platform.
 
-Side note: as of writing this I forgot some details, but I think ADI's buildroot build flow is also undergoing some changes at the moment (analogdevicesinc/plutosdr-fw vs. analogdevicesinc/br2-external). This one is based on the latter.
+Why this repo? I wanted to have the complete build flow understood and under control. tezuka_fw is nice for the enhancements and features it provides over the PlutoSDR code from Analog Devices Inc. (ADI), but I don't actually need those features and they are in my way (example: some background script in Linux for push-to-talk functionality kept disabling my Tx LO and I was pulling my hair out before I found the culprit).
+What I need is a developer-friendly platform for experimentation and exploration, so I tried to combine the best of both worlds. Maybe others find it useful, too.
+
+Side note: as of writing this I forgot some details, but I think ADI's buildroot build flow is also undergoing some changes at the moment (analogdevicesinc/plutosdr-fw vs. analogdevicesinc/br2-external). This one is based on the latter. It has [documentation](https://analogdevicesinc.github.io/br2-external/xilinx/).
 
 One major motivation was to use the relatively new "SHEL flow" that AMD/Xilinx introduced for generating a device tree, rather than dealing with hand-written DTS files, and getting rid of generated code (like ps7_init_gpl.c).
 
@@ -31,9 +33,35 @@ Setting the `ip_repo_paths` variable and creating the block design happens in on
 
 ## Build
 
-Please have a look at the `justfile` as this section might be outdated.
+### Overview
 
 To deploy, copy the files from `./br2-external/buildroot/output/images/sdimg/` to the SD card. With Ethernet see `just deploy-lan`.
+
+In general, please also have a look at the `justfile` as this section might be outdated.
+
+### Preparations
+
+First, check out the Git submodules.
+
+FIXME buildroot must be initialized manually:
+
+```sh
+cd br2-external/buildroot
+make BR2_EXTERNAL="${PWD}/.." zynq_libre_defconfig
+```
+
+Also, the justfiles currently reference two different local python venvs (for lopper and PeakRDL-regblock). They must currently be created manually at a hardcoded location.. not great. Suggestions are welcome.
+
+For lopper, this is what I do:
+
+```sh
+python -m venv venv_lopper
+source venv_lopper/bin/activate
+pip install lopper[server,yaml,dt,pcpp]
+pip install pylibfdt # this libfdt situation might require a closer look
+```
+
+The other one for PeakRDL is very similar. Follow its [documentation](https://peakrdl-regblock.readthedocs.io/en/latest/). The command you are looking for (at the time of writing) is `pip install peakrdl-regblock[cli]`.
 
 ### building the bitstream
 
@@ -86,15 +114,7 @@ sdtgen -xsa build/system_top.xsa -dir build/sdt_out -user_dts dts/libre-board.dt
 
 #### lopper
 
-The output of `sdtgen` is reduced to a single system.dts file by `lopper`. Creating a Python venv for this tool is advised.
-
-The libfdt situation might require a closer look.
-
-```sh
-source venv_lopper/bin/activate
-pip install lopper[server,yaml,dt,pcpp]
-pip install pylibfdt
-```
+The output of `sdtgen` is reduced to a single system.dts file by `lopper`. Creating a Python venv for this tool is advised (see "Preparations").
 
 To run it (the `-v` adds verbose output and can be omitted):
 
@@ -126,7 +146,8 @@ just deploy-lan
 
 ## Issues
 
-Vivado 2025.2 has some trouble with bootgen, and buildroot might fail. I solve it locally by changing the script to use `BOOTGEN="/tools/Xilinx/Vitis/2024.2/bin/bootgen"`.
+- Vivado 2025.2 has some trouble with bootgen, and buildroot might fail. I solve it locally by changing the script to use `BOOTGEN="/tools/Xilinx/Vitis/2024.2/bin/bootgen"`.
+- Sometimes, Linux boots without ever getting an IPv4 address on the Ethernet port. Unknown reason. Rebooting helps.
 
 ## TODO
 

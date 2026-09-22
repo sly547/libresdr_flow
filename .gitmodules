@@ -1,6 +1,6 @@
 [submodule "hdl"]
 	path = hdl
-	url = ./hdl/
+	url = https://github.com/sly547/libresdr_hdl.git
 [submodule "br2-external"]
 	path = br2-external
-	url = ./br2-external/
+	url = https://github.com/sly547/br2-external
